@@ -11,7 +11,7 @@
 
 @interface SDWebImageCombinedOperation : NSObject <SDWebImageOperation>
 
-@property (assign, nonatomic, getter = isCancelled) BOOL cancelled;
+@property (assign, atomic, getter = isCancelled) BOOL cancelled;
 @property (copy, nonatomic) SDWebImageNoParamsBlock cancelBlock;
 @property (strong, nonatomic) NSOperation *cacheOperation;
 
@@ -339,9 +339,7 @@
 }
 
 - (void)cancel {
-    @synchronized (self) {
-        self.cancelled = YES;
-    }
+    self.cancelled = YES;
     if (self.cacheOperation) {
         [self.cacheOperation cancel];
         self.cacheOperation = nil;

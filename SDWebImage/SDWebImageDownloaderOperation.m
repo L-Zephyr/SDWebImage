@@ -26,6 +26,7 @@ NSString *const SDWebImageDownloadFinishNotification = @"SDWebImageDownloadFinis
 @property (assign, nonatomic, getter = isExecuting) BOOL executing;
 @property (assign, nonatomic, getter = isFinished) BOOL finished;
 @property (strong, nonatomic) NSMutableData *imageData;
+@property (nonatomic) NSLock *lock;
 
 // This is weak because it is injected by whoever manages this session. If this gets nil-ed out, we won't be able to run
 // the task associated with this operation
@@ -84,6 +85,7 @@ NSString *const SDWebImageDownloadFinishNotification = @"SDWebImageDownloadFinis
         _expectedSize = 0;
         _unownedSession = session;
         responseFromCached = YES; // Initially wrong until `- URLSession:dataTask:willCacheResponse:completionHandler: is called or not called
+        _lock = [[NSLock alloc] init];
     }
     return self;
 }
@@ -201,10 +203,8 @@ NSString *const SDWebImageDownloadFinishNotification = @"SDWebImageDownloadFinis
 }
 
 - (void)done {
-    @synchronized (self) {
-        self.finished = YES;
-        self.executing = NO;
-    }
+    self.finished = YES;
+    self.executing = NO;
     [self reset];
 }
 
@@ -223,14 +223,34 @@ NSString *const SDWebImageDownloadFinishNotification = @"SDWebImageDownloadFinis
 
 - (void)setFinished:(BOOL)finished {
     [self willChangeValueForKey:@"isFinished"];
+    [_lock lock];
     _finished = finished;
+    [_lock unlock];
     [self didChangeValueForKey:@"isFinished"];
 }
 
 - (void)setExecuting:(BOOL)executing {
     [self willChangeValueForKey:@"isExecuting"];
+    [_lock lock];
     _executing = executing;
+    [_lock unlock];
     [self didChangeValueForKey:@"isExecuting"];
+}
+
+- (BOOL)isFinished {
+    BOOL temp = NO;
+    [_lock lock];
+    temp = _finished;
+    [_lock unlock];
+    return temp;
+}
+
+- (BOOL)isExecuting {
+    BOOL temp = NO;
+    [_lock lock];
+    temp = _executing;
+    [_lock unlock];
+    return temp;
 }
 
 - (BOOL)isConcurrent {
