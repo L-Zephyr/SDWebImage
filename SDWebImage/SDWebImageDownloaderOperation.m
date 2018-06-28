@@ -26,7 +26,9 @@ NSString *const SDWebImageDownloadFinishNotification = @"SDWebImageDownloadFinis
 @property (assign, nonatomic, getter = isExecuting) BOOL executing;
 @property (assign, nonatomic, getter = isFinished) BOOL finished;
 @property (strong, nonatomic) NSMutableData *imageData;
-@property (nonatomic) NSLock *lock;
+
+@property (nonatomic) NSRecursiveLock *executingLock;
+@property (nonatomic) NSRecursiveLock *finishedLock;
 
 // This is weak because it is injected by whoever manages this session. If this gets nil-ed out, we won't be able to run
 // the task associated with this operation
@@ -85,7 +87,8 @@ NSString *const SDWebImageDownloadFinishNotification = @"SDWebImageDownloadFinis
         _expectedSize = 0;
         _unownedSession = session;
         responseFromCached = YES; // Initially wrong until `- URLSession:dataTask:willCacheResponse:completionHandler: is called or not called
-        _lock = [[NSLock alloc] init];
+        _executingLock = [[NSRecursiveLock alloc] init];
+        _finishedLock = [[NSRecursiveLock alloc] init];
     }
     return self;
 }
@@ -223,33 +226,33 @@ NSString *const SDWebImageDownloadFinishNotification = @"SDWebImageDownloadFinis
 
 - (void)setFinished:(BOOL)finished {
     [self willChangeValueForKey:@"isFinished"];
-    [_lock lock];
+    [_finishedLock lock];
     _finished = finished;
-    [_lock unlock];
+    [_finishedLock unlock];
     [self didChangeValueForKey:@"isFinished"];
 }
 
 - (void)setExecuting:(BOOL)executing {
     [self willChangeValueForKey:@"isExecuting"];
-    [_lock lock];
+    [_executingLock lock];
     _executing = executing;
-    [_lock unlock];
+    [_executingLock unlock];
     [self didChangeValueForKey:@"isExecuting"];
 }
 
 - (BOOL)isFinished {
     BOOL temp = NO;
-    [_lock lock];
+    [_finishedLock lock];
     temp = _finished;
-    [_lock unlock];
+    [_finishedLock unlock];
     return temp;
 }
 
 - (BOOL)isExecuting {
     BOOL temp = NO;
-    [_lock lock];
+    [_executingLock lock];
     temp = _executing;
-    [_lock unlock];
+    [_executingLock unlock];
     return temp;
 }
 
